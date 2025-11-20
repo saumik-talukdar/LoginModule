@@ -29,6 +29,7 @@ public class WebSecurityConfig {
         http
                 .csrf(csrf -> csrf.disable()) // optional for development / stateless APIs
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/public/**", "/auth/**").permitAll()
                         .requestMatchers("/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
@@ -37,8 +38,6 @@ public class WebSecurityConfig {
                 );
                 //.formLogin(Customizer.withDefaults()) // use Spring's default login page
                 //.logout(Customizer.withDefaults());   // enable default logout
-        // Add JWT filter before username/password authentication
-        http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
