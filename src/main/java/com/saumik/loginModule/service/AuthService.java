@@ -4,6 +4,7 @@ import com.saumik.loginModule.dto.*;
 import com.saumik.loginModule.entity.User;
 import com.saumik.loginModule.repository.UserRepository;
 import com.saumik.loginModule.security.AuthUtil;
+import com.saumik.loginModule.security.CustomUserDetailsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
@@ -12,6 +13,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +29,8 @@ public class AuthService {
     private final AuthUtil authUtil;
     private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
+    private final UserDetailsService userDetailsService;
+    private final CustomUserDetailsService customUserDetailsService;
 
     public JwtTokenResponse login(@Valid LoginRequestDto req) {
         Authentication authentication = authenticationManager.authenticate(
@@ -92,7 +97,9 @@ public class AuthService {
         }
 
         String username = authUtil.getUsernameFromToken(oldRefreshToken);
-        List<? extends GrantedAuthority> roles = authUtil.extractRoles(oldRefreshToken);
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
+        List<? extends GrantedAuthority> roles = (List<? extends GrantedAuthority>) userDetails.getAuthorities();
+
 
         // Verify this refresh token is the newest one
         String stored = refreshTokenService.get(username);
@@ -101,9 +108,11 @@ public class AuthService {
             throw new BadRequestException("Invalid or reused refresh token");
         }
 
+
+
         // At this point → token is valid and correct
         UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken(username, null, roles);
+                new UsernamePasswordAuthenticationToken(userDetails, null, roles);
 
         String newAccessToken = authUtil.generateAccessToken(auth);
         String newRefreshToken = authUtil.generateRefreshToken(auth);
